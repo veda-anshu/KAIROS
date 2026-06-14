@@ -1,0 +1,26 @@
+# Build
+build/
+*.o *.a *.so
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Node / React
+node_modules/
+dist/
+.vite/
+
+# Data / generated
+data/lognormal_params.json
+data/cluster_trace.csv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
