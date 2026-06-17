@@ -7,7 +7,6 @@
 [![C++17](https://img.shields.io/badge/C%2B%2B-17-blue)](https://en.cppreference.com/w/cpp/17)
 [![Python](https://img.shields.io/badge/Python-3.11-green)](https://python.org)
 [![React](https://img.shields.io/badge/React-18-61dafb)](https://react.dev)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
 ---
 
@@ -228,15 +227,6 @@ INPUTS:  job elapsed time t₀, log-normal params (μ, σ),
 
 ---
 
-## CV Lines (copy-paste ready)
-
-**For SDE interviews:**
-> Built lock-free parallel Monte Carlo simulation engine in C++17 using `std::thread` with custom slab allocator (`PathAllocator`); achieves ~8M path-steps/second on 8-core hardware; JSON CLI interface consumed by Flask + React dashboard.
-
-**For Quant/Quant-Dev interviews:**
-> Applied Longstaff-Schwartz Least Squares Monte Carlo (American option pricing algorithm, LS 2001) to derive optimal job preemption policy; calibrated log-normal duration model via MLE on Google Cluster Trace 2019; Shapley value fairness mechanism (cooperative game theory) prevents resource starvation; reduced mean HPC wait time by 57.7%.
-
----
 
 ## References
 
