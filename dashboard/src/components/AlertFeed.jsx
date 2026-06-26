@@ -28,35 +28,22 @@ const DEMO_ALERTS = [
   { id:5, job:"job_073", action:"PREEMPT",  conf:0.83, elapsed:"9.7 h",  pv:0.42 },
 ]
 
-const S = {
-  card:   { background:"#1e2535", border:"1px solid #2d3748",
-            borderRadius:12, padding:"20px 24px" },
-  title:  { fontSize:13, color:"#94a3b8", fontWeight:600, marginBottom:12,
-            textTransform:"uppercase", letterSpacing:"0.05em" },
-  alert:  { display:"flex", alignItems:"center", gap:10, padding:"9px 12px",
-            borderRadius:7, marginBottom:8, fontSize:13 },
-  tag:    { padding:"2px 9px", borderRadius:20, fontSize:11, fontWeight:700,
-            flexShrink:0 },
-}
-
 function Alert({ item }) {
   const isPreempt = item.action === "PREEMPT"
   return (
     <div style={{
-      ...S.alert,
-      background: isPreempt ? "#2d1515" : "#0f2d1a",
-      border: `1px solid ${isPreempt ? "#7f1d1d" : "#14532d"}`
+      display: "flex", alignItems: "center", gap: 12, padding: "10px 14px",
+      borderRadius: 8, marginBottom: 10, fontSize: 13,
+      background: isPreempt ? "rgba(239, 68, 68, 0.1)" : "rgba(34, 197, 94, 0.1)",
+      border: `1px solid ${isPreempt ? "rgba(239, 68, 68, 0.2)" : "rgba(34, 197, 94, 0.2)"}`,
+      transition: "all 0.2s ease"
     }}>
-      <span style={{
-        ...S.tag,
-        background: isPreempt ? "#ef4444" : "#22c55e",
-        color: "#fff"
-      }}>
+      <span className={isPreempt ? "badge badge-danger" : "badge badge-kairos"}>
         {item.action}
       </span>
-      <span style={{ color:"#94a3b8", flexGrow:1 }}>{item.job}</span>
-      <span style={{ color:"#475569", fontSize:11 }}>
-        {item.elapsed} · conf {(item.conf*100).toFixed(0)}%
+      <span style={{ color:"var(--text-main)", flexGrow:1, fontWeight: 600 }}>{item.job}</span>
+      <span style={{ color:"var(--text-muted)", fontSize:12 }}>
+        {item.elapsed} <span style={{ margin: '0 4px', color: 'var(--border-highlight)' }}>|</span> conf {(item.conf*100).toFixed(0)}%
       </span>
     </div>
   )
@@ -95,29 +82,30 @@ export default function AlertFeed({ queryResult }) {
   }, [queryResult])
 
   return (
-    <div style={S.card}>
-      <p style={S.title}>LS-MC Decision Feed</p>
-      <div style={{ marginBottom:16 }}>
+    <div className="card">
+      <span className="label">LS-MC Decision Feed</span>
+      <div style={{ marginBottom: 28, marginTop: 12 }}>
         {alerts.map(a => <Alert key={a.id} item={a} />)}
       </div>
 
-      <p style={{...S.title, marginTop:20}}>Utilisation over Simulation Window</p>
+      <span className="label" style={{ marginBottom: 16 }}>Utilisation over Simulation Window</span>
       <ResponsiveContainer width="100%" height={170}>
         <LineChart data={TIMELINE}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#2d3748" />
-          <XAxis dataKey="hour" tick={{ fill:"#64748b", fontSize:10 }}
-                 interval={Math.floor(TIMELINE.length / 6)} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
+          <XAxis dataKey="hour" tick={{ fill:"var(--text-muted)", fontSize:11 }}
+                 interval={Math.floor(TIMELINE.length / 6)} axisLine={false} tickLine={false} />
           <YAxis domain={[0.4, 1]} tickFormatter={v=>(v*100).toFixed(0)+"%"}
-                 tick={{ fill:"#64748b", fontSize:10 }} />
+                 tick={{ fill:"var(--text-muted)", fontSize:11 }} axisLine={false} tickLine={false} />
           <Tooltip
-            contentStyle={{ background:"#1e2535", border:"1px solid #2d3748", borderRadius:8 }}
+            contentStyle={{ background:"var(--bg-card)", border:"1px solid var(--border-color)", borderRadius:8, backdropFilter: 'blur(12px)' }}
             formatter={(v, n) => [(v*100).toFixed(1)+"%", n]}
+            labelStyle={{ color: "var(--text-main)" }}
           />
-          <Legend wrapperStyle={{ fontSize:12, color:"#94a3b8" }} />
+          <Legend wrapperStyle={{ fontSize:13, color:"var(--text-muted)", paddingTop: 10 }} />
           <Line type="monotone" dataKey="fifo"   name="FIFO"
-                stroke="#3b82f6" strokeWidth={2} dot={false} />
+                stroke="var(--accent-blue)" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: "var(--accent-blue)" }} />
           <Line type="monotone" dataKey="kairos" name="Kairos"
-                stroke="#22c55e" strokeWidth={2} dot={false} />
+                stroke="var(--accent-green)" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: "var(--accent-green)" }} />
         </LineChart>
       </ResponsiveContainer>
     </div>

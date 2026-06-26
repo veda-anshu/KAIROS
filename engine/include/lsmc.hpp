@@ -47,6 +47,9 @@ struct PreemptionResult {
     // Preemption exercise boundary: (time_seconds, progress_threshold)
     // A job with progress < threshold at that time should be preempted.
     std::vector<std::pair<double,double>> boundary_points;
+    
+    // Sample of the simulated MC paths for frontend visualization
+    std::vector<double> sample_paths;
 };
 
 // ================================================================

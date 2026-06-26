@@ -2,6 +2,8 @@
 #include <cstdint>
 #include <string>
 #include <algorithm>
+#include <vector>
+#include <utility>
 
 enum class JobStatus {
     PENDING,     // Waiting in queue
@@ -22,6 +24,7 @@ struct Job {
     double   shapley_weight;    // Fairness weight from cooperative game theory
     JobStatus status;
     int       slot;             // GPU slot index (-1 if not running)
+    std::vector<std::pair<double, double>> intervals; // Execution intervals [start, end]
 
     Job()
         : id(0), array_idx(0),

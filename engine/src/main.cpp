@@ -34,6 +34,7 @@ struct SimResults {
     double utilization;         // Fraction of slot-time actively used
     int    throughput;          // Jobs completed
     int    preemptions;         // Kairos-only
+    std::vector<Job> jobs;      // Output jobs trace
 };
 
 // ================================================================
@@ -109,6 +110,7 @@ static SimResults run_fifo(const std::vector<Job>& templates,
                 jobs[idx].status     = JobStatus::RUNNING;
                 jobs[idx].start_time = t;
                 jobs[idx].slot       = s;
+                jobs[idx].intervals.push_back({t, -1.0});
                 slot_job[s]          = idx;
                 wait_times.push_back(t - jobs[idx].arrival_time);
             }
@@ -121,6 +123,7 @@ static SimResults run_fifo(const std::vector<Job>& templates,
             jobs[idx].elapsed_time += cfg.dt;
             busy_time              += cfg.dt;
             if (jobs[idx].elapsed_time >= jobs[idx].total_duration) {
+                jobs[idx].intervals.back().second = t;
                 jobs[idx].status = JobStatus::COMPLETED;
                 slot_job[s]      = -1;
                 ++completed;
@@ -133,7 +136,7 @@ fifo_done:
     double mw = wait_times.empty() ? 0.0
               : std::accumulate(wait_times.begin(), wait_times.end(), 0.0)
                 / wait_times.size();
-    return SimResults{mw, busy_time / (cfg.n_slots * t), completed, 0};
+    return SimResults{mw, busy_time / (cfg.n_slots * t), completed, 0, jobs};
 }
 
 // ================================================================
@@ -192,6 +195,7 @@ static SimResults run_kairos(const std::vector<Job>& templates,
                 }
                 jobs[idx].status     = JobStatus::RUNNING;
                 jobs[idx].slot       = s;
+                jobs[idx].intervals.push_back({t, -1.0});
                 slot_job[s]          = idx;
             }
         }
@@ -233,6 +237,7 @@ static SimResults run_kairos(const std::vector<Job>& templates,
 
                 // Require high confidence — false preemptions are expensive
                 if (res.should_preempt && res.confidence >= 0.72) {
+                    j.intervals.back().second = t;
                     j.status    = JobStatus::PREEMPTED;
                     slot_job[s] = -1;
                     // Push to BACK: the freed slot goes to the next waiting job.
@@ -250,6 +255,7 @@ static SimResults run_kairos(const std::vector<Job>& templates,
             jobs[idx].elapsed_time += cfg.dt;
             busy_time              += cfg.dt;
             if (jobs[idx].elapsed_time >= jobs[idx].total_duration) {
+                jobs[idx].intervals.back().second = t;
                 jobs[idx].status = JobStatus::COMPLETED;
                 slot_job[s]      = -1;
                 ++completed;
@@ -262,7 +268,7 @@ kairos_done:
     double mw = wait_times.empty() ? 0.0
               : std::accumulate(wait_times.begin(), wait_times.end(), 0.0)
                 / wait_times.size();
-    return SimResults{mw, busy_time / (cfg.n_slots * t), completed, preemptions};
+    return SimResults{mw, busy_time / (cfg.n_slots * t), completed, preemptions, jobs};
 }
 
 // ================================================================
@@ -300,7 +306,31 @@ static void print_simulate_json(const SimConfig& c,
               << "  \"improvement\": {\n"
               << "    \"wait_reduction_pct\": " << fd(wait_imp) << ",\n"
               << "    \"utilization_gain_pct\": " << fd(util_imp) << "\n"
-              << "  }\n"
+              << "  },\n"
+              << "  \"fifo_jobs\": [\n";
+    for(size_t i = 0; i < fifo.jobs.size(); ++i) {
+        std::cout << "    {\"id\": " << fifo.jobs[i].id << ", \"arr\": " << fd(fifo.jobs[i].arrival_time, 0) << ", \"intervals\": [";
+        for(size_t k = 0; k < fifo.jobs[i].intervals.size(); ++k) {
+            std::cout << "[" << fd(fifo.jobs[i].intervals[k].first, 0) << "," << fd(fifo.jobs[i].intervals[k].second, 0) << "]";
+            if (k + 1 < fifo.jobs[i].intervals.size()) std::cout << ",";
+        }
+        std::cout << "]}";
+        if (i + 1 < fifo.jobs.size()) std::cout << ",";
+        std::cout << "\n";
+    }
+    std::cout << "  ],\n"
+              << "  \"kairos_jobs\": [\n";
+    for(size_t i = 0; i < kai.jobs.size(); ++i) {
+        std::cout << "    {\"id\": " << kai.jobs[i].id << ", \"arr\": " << fd(kai.jobs[i].arrival_time, 0) << ", \"intervals\": [";
+        for(size_t k = 0; k < kai.jobs[i].intervals.size(); ++k) {
+            std::cout << "[" << fd(kai.jobs[i].intervals[k].first, 0) << "," << fd(kai.jobs[i].intervals[k].second, 0) << "]";
+            if (k + 1 < kai.jobs[i].intervals.size()) std::cout << ",";
+        }
+        std::cout << "]}";
+        if (i + 1 < kai.jobs.size()) std::cout << ",";
+        std::cout << "\n";
+    }
+    std::cout << "  ]\n"
               << "}\n";
 }
 
@@ -318,6 +348,13 @@ static void print_query_json(const Job& j, const PreemptionResult& r) {
         std::cout << "    [" << fd(r.boundary_points[i].first, 0)
                   << ", "   << fd(r.boundary_points[i].second, 4) << "]";
         if (i + 1 < r.boundary_points.size()) std::cout << ",";
+        std::cout << "\n";
+    }
+    std::cout << "  ],\n"
+              << "  \"sample_paths\": [\n";
+    for (size_t i = 0; i < r.sample_paths.size(); ++i) {
+        std::cout << "    " << fd(r.sample_paths[i], 0);
+        if (i + 1 < r.sample_paths.size()) std::cout << ",";
         std::cout << "\n";
     }
     std::cout << "  ]\n}\n";
@@ -364,6 +401,10 @@ int main(int argc, char** argv) {
             if (!strcmp(argv[i], "--preempt_value")) lp.preemption_value  = std::stod(argv[i+1]);
             if (!strcmp(argv[i], "--paths"))         lp.n_paths           = std::stoi(argv[i+1]);
         }
+        
+        lp.T_horizon = 2.0 * std::exp(lp.mu);
+        lp.risk_free_rate = std::log(2.0) / lp.T_horizon;
+        lp.completion_reward = 1.0;
 
         auto result = LSMC::compute_preemption_policy(j, lp);
         print_query_json(j, result);

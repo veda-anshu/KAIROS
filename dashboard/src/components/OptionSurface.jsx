@@ -1,145 +1,133 @@
-// OptionSurface.jsx
-// Renders the "option value surface" — the core visualisation of Kairos.
-// Shows continuation value C(elapsed_time, preemption_value) as a 2-D
-// colour heatmap. The bright-to-dark boundary is the preemption frontier:
-// cells above it = CONTINUE, cells below = PREEMPT.
-//
-// This is the visual that makes judges (and quant interviewers) lean in.
+import React from 'react';
 
-const S = {
-  card:   { background:"#1e2535", border:"1px solid #2d3748",
-            borderRadius:12, padding:"20px 24px", marginTop:24 },
-  title:  { fontSize:13, color:"#94a3b8", fontWeight:600,
-            marginBottom:4, textTransform:"uppercase", letterSpacing:"0.05em" },
-  sub:    { fontSize:12, color:"#475569", marginBottom:16 },
-  wrap:   { overflowX:"auto" },
-  legend: { display:"flex", alignItems:"center", gap:8,
-            marginTop:14, fontSize:11, color:"#64748b" },
-  grad:   { width:120, height:12, borderRadius:4,
-            background:"linear-gradient(90deg,#1e3a5f,#2563eb,#22c55e,#fbbf24,#ef4444)" },
-}
-
-// Colour ramp: blue (low continuation → PREEMPT) → green → amber → red (high → CONTINUE)
+// Custom scientific color ramp (Dark -> Deep Purple -> Violet -> Cyan)
 function valueToColor(v) {
-  // v in [0, 1]
-  if (v < 0.25) {
-    // dark blue → blue
-    const t = v / 0.25
-    const r = Math.round(30  + t * (37  - 30))
-    const g = Math.round(58  + t * (99  - 58))
-    const b = Math.round(95  + t * (235 - 95))
-    return `rgb(${r},${g},${b})`
-  } else if (v < 0.5) {
-    const t = (v - 0.25) / 0.25
-    const r = Math.round(37  + t * (34  - 37))
-    const g = Math.round(99  + t * (197 - 99))
-    const b = Math.round(235 + t * (94  - 235))
-    return `rgb(${r},${g},${b})`
-  } else if (v < 0.75) {
-    const t = (v - 0.5) / 0.25
-    const r = Math.round(34  + t * (251 - 34))
-    const g = Math.round(197 + t * (191 - 197))
-    const b = Math.round(94  + t * (36  - 94))
-    return `rgb(${r},${g},${b})`
+  if (v < 0.33) {
+    const t = v / 0.33;
+    const r = Math.round(10 + t * (59 - 10));
+    const g = Math.round(10 + t * (0 - 10));
+    const b = Math.round(10 + t * (138 - 10));
+    return `rgb(${r},${g},${b})`;
+  } else if (v < 0.66) {
+    const t = (v - 0.33) / 0.33;
+    const r = Math.round(59 + t * (138 - 59));
+    const g = Math.round(0 + t * (43 - 0));
+    const b = Math.round(138 + t * (226 - 138));
+    return `rgb(${r},${g},${b})`;
   } else {
-    const t = (v - 0.75) / 0.25
-    const r = Math.round(251 + t * (239 - 251))
-    const g = Math.round(191 + t * (68  - 191))
-    const b = Math.round(36  + t * (68  - 36))
-    return `rgb(${r},${g},${b})`
+    const t = (v - 0.66) / 0.34;
+    const r = Math.round(138 + t * (0 - 138));
+    const g = Math.round(43 + t * (240 - 43));
+    const b = Math.round(226 + t * (255 - 226));
+    return `rgb(${r},${g},${b})`;
   }
 }
 
 export default function OptionSurface({ data }) {
-  if (!data || !data.continuation_values) return null
+  if (!data || !data.continuation_values) return null;
 
-  const { elapsed_hours, preempt_values, continuation_values } = data
-  // continuation_values[preempt_idx][elapsed_idx]
-  const nP = preempt_values.length
-  const nE = elapsed_hours.length
+  const { elapsed_hours, preempt_values, continuation_values } = data;
+  const nP = preempt_values.length;
+  const nE = elapsed_hours.length;
 
-  // Cell size — scale to fill ~700px wide
-  const cellW = Math.max(20, Math.floor(660 / nE))
-  const cellH = Math.max(18, Math.floor(360 / nP))
+  const cellW = Math.max(16, Math.floor(660 / nE));
+  const cellH = Math.max(16, Math.floor(360 / nP));
 
   return (
-    <div style={S.card}>
-      <p style={S.title}>Option Value Surface — Preemption Exercise Boundary</p>
-      <p style={S.sub}>
-        C(elapsed_time, preemption_value) — continuation value estimated via LS-MC.
-        &nbsp;The boundary separates CONTINUE (bright) from PREEMPT (dark).
+    <div className="card">
+      <span className="label">OPTION VALUE SURFACE</span>
+      <p className="subtitle" style={{ marginBottom: 24 }}>
+        The multi-dimensional Preemption Boundary. Dark areas indicate immediate Preemption. 
+        Bright Cyan areas indicate strong Continuation.
       </p>
 
-      <div style={S.wrap}>
+      <div style={{ overflowX: "auto" }}>
         <div style={{ display:"flex", gap:0 }}>
-          {/* Y-axis label */}
+          {/* Y-axis */}
           <div style={{
             writingMode:"vertical-rl", transform:"rotate(180deg)",
-            fontSize:11, color:"#475569", textAlign:"center",
-            marginRight:6, alignSelf:"center"
+            fontSize:12, color:"var(--text-muted)", textAlign:"center",
+            marginRight:16, alignSelf:"center", fontFamily: 'Outfit', letterSpacing: '0.1em'
           }}>
-            preemption value →
+            PREEMPTION VALUE
           </div>
 
           <div>
-            {/* Heatmap grid */}
+            {/* Grid */}
             {[...continuation_values].reverse().map((row, pi_rev) => {
-              const pi = nP - 1 - pi_rev
+              const pi = nP - 1 - pi_rev;
               return (
                 <div key={pi} style={{ display:"flex", alignItems:"center" }}>
                   <div style={{
-                    width:30, fontSize:10, color:"#475569",
-                    textAlign:"right", paddingRight:5, flexShrink:0
+                    width:35, fontSize:11, color:"var(--text-muted)",
+                    textAlign:"right", paddingRight:12, flexShrink:0,
+                    fontFamily: 'JetBrains Mono'
                   }}>
                     {preempt_values[pi]?.toFixed(2)}
                   </div>
                   {row.map((val, ei) => (
                     <div
                       key={ei}
-                      title={`t=${elapsed_hours[ei]}h  pv=${preempt_values[pi]}  C=${val}`}
+                      title={`Time: ${elapsed_hours[ei]}h | Value: ${preempt_values[pi]} | C=${val.toFixed(4)}`}
                       style={{
                         width:  cellW,
                         height: cellH,
                         background: valueToColor(val),
                         cursor: "crosshair",
-                        transition: "opacity .1s",
+                        transition: "transform 0.1s, opacity 0.1s",
                         opacity: 0.9,
+                        borderRadius: 2,
+                        margin: 1
                       }}
-                      onMouseEnter={e => e.currentTarget.style.opacity = "1"}
-                      onMouseLeave={e => e.currentTarget.style.opacity = "0.9"}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.opacity = "1";
+                        e.currentTarget.style.transform = "scale(1.2)";
+                        e.currentTarget.style.zIndex = "10";
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.opacity = "0.9";
+                        e.currentTarget.style.transform = "scale(1)";
+                        e.currentTarget.style.zIndex = "1";
+                      }}
                     />
                   ))}
                 </div>
-              )
+              );
             })}
 
-            {/* X-axis labels */}
-            <div style={{ display:"flex", paddingLeft:35 }}>
+            {/* X-axis */}
+            <div style={{ display:"flex", paddingLeft:47, marginTop: 8 }}>
               {elapsed_hours.filter((_, i) => i % Math.ceil(nE/8) === 0).map((h, i) => (
                 <div key={i} style={{
-                  width: cellW * Math.ceil(nE/8),
-                  fontSize:10, color:"#475569", paddingTop:4
+                  width: (cellW + 2) * Math.ceil(nE/8),
+                  fontSize:11, color:"var(--text-muted)",
+                  fontFamily: 'JetBrains Mono'
                 }}>
                   {h}h
                 </div>
               ))}
             </div>
-            <div style={{ fontSize:11, color:"#475569", paddingLeft:35, marginTop:2 }}>
-              elapsed time →
+            <div style={{ fontSize:12, color:"var(--text-muted)", paddingLeft:47, marginTop:8, fontFamily: 'Outfit', letterSpacing: '0.1em' }}>
+              ELAPSED TIME (HOURS)
             </div>
           </div>
         </div>
 
         {/* Legend */}
-        <div style={S.legend}>
-          <span>PREEMPT</span>
-          <div style={S.grad} />
-          <span>CONTINUE</span>
-          <span style={{ marginLeft:16, color:"#475569" }}>
-            Hover cells for exact values
-          </span>
+        <div style={{
+          display:"flex", alignItems:"center", gap:16,
+          marginTop:32, fontSize:12, color:"var(--text-muted)",
+          borderTop: '1px solid var(--border-color)',
+          paddingTop: 16, fontFamily: 'Outfit'
+        }}>
+          <span>PREEMPT (DARK)</span>
+          <div style={{
+            width: 200, height: 8, borderRadius: 4,
+            background: "linear-gradient(90deg, #0A0A0A, #3B008A, #8A2BE2, #00F0FF)"
+          }} />
+          <span style={{ color: 'var(--accent-cyan)' }}>CONTINUE (CYAN)</span>
         </div>
       </div>
     </div>
-  )
+  );
 }

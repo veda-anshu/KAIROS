@@ -202,10 +202,15 @@ PreemptionResult LSMC::compute_preemption_policy(
     //   - Job completed (T_i ≤ T_max) → cash flow = completion_reward
     //   - Job still running            → forced preemption = preemption_value
     std::vector<double> cash_flows(N);
+    std::vector<double> stopping_times(N);
     for (int i = 0; i < N; ++i) {
-        cash_flows[i] = (path_durations[i] <= Tmax)
-                      ?  params.completion_reward
-                      :  params.preemption_value;
+        if (path_durations[i] <= Tmax) {
+            cash_flows[i] = params.completion_reward;
+            stopping_times[i] = path_durations[i];
+        } else {
+            cash_flows[i] = params.preemption_value;
+            stopping_times[i] = Tmax;
+        }
     }
 
     // ============================================================
@@ -253,7 +258,8 @@ PreemptionResult LSMC::compute_preemption_policy(
 
         for (int i : itm) {
             double x   = t_s / path_durations[i];   // Progress ∈ (0, 1)
-            double y   = discount * cash_flows[i];   // Discounted continuation (LS 2001 §2)
+            double dt_to_stop = stopping_times[i] - t_s;
+            double y   = cash_flows[i] * std::exp(-params.risk_free_rate * dt_to_stop);
 
             double phi[3] = { L0(x), L1(x), L2(x) };
 
@@ -278,6 +284,7 @@ PreemptionResult LSMC::compute_preemption_policy(
 
             if (params.preemption_value > continuation) {
                 cash_flows[i] = params.preemption_value;
+                stopping_times[i] = t_s;
                 // Track the highest progress at which preemption is optimal
                 if (x > step_boundary) step_boundary = x;
             }
@@ -291,6 +298,11 @@ PreemptionResult LSMC::compute_preemption_policy(
     // ============================================================
     // PHASE 4: RESULT AGGREGATION
     // ============================================================
+    // Discount all final optimal cash flows back to t0
+    for (int i = 0; i < N; ++i) {
+        double dt_to_stop = stopping_times[i] - t0;
+        cash_flows[i] *= std::exp(-params.risk_free_rate * dt_to_stop);
+    }
     double mean_cf = std::accumulate(cash_flows.begin(), cash_flows.end(), 0.0) / N;
 
     // Standard error of the mean → used to compute confidence
@@ -308,11 +320,19 @@ PreemptionResult LSMC::compute_preemption_policy(
 
     bool should_preempt = (params.preemption_value > mean_cf);
 
+    std::vector<double> sample_paths;
+    int num_samples = std::min(100, N);
+    sample_paths.reserve(num_samples);
+    for(int i = 0; i < num_samples; ++i) {
+        sample_paths.push_back(path_durations[i]);
+    }
+
     return PreemptionResult{
         mean_cf,
         params.preemption_value,
         should_preempt,
         confidence,
-        boundary_points
+        boundary_points,
+        sample_paths
     };
 }
